@@ -1,7 +1,4 @@
-use std::fmt;
-
-#[derive(PartialEq)]
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum TokenType {
     Undefined,
     Int,
@@ -14,11 +11,11 @@ pub enum TokenType {
     Special,
     Operator,
     LineBreak,
-    Comment
+    Comment,
+    EOF
 }
 
-#[derive(Debug)]
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Token<'a> {
     pub sval: &'a str,
     pub nval: f64,

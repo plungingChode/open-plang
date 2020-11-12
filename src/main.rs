@@ -1,7 +1,5 @@
 mod plang;
-use std::collections::HashMap;
-use plang::{ Tokenizer, TokenType, Lexer, LexerToken }; 
-use itertools::Itertools;
+use plang::{ Lexer }; 
 
 fn main() {
     let script = r#"** this is a commentá

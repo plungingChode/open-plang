@@ -40,15 +40,6 @@ pub struct LexerToken<'a> {
 }
 
 impl<'a> LexerToken<'a> {
-    pub fn is_data(&self) -> bool {
-        match self.tok.ttype {
-            TokenType::Char | TokenType::String | 
-            TokenType::Int  | TokenType::Float => true,
-
-            _ => false
-        } 
-    }
-
     #[cfg(test)]
     pub fn from(sval: &str, nval: f64, ttype: TokenType) -> LexerToken {
         let lex = if ttype == TokenType::Keyword {
@@ -64,23 +55,33 @@ impl<'a> LexerToken<'a> {
 #[derive(Debug)]
 pub struct Lexer<'a> {
     tok: Tokenizer<'a>,
+    
+    current: Token<'a>,
+    current_lex: String
 }
 
 impl<'a> Lexer<'a> {
     pub fn from(s: &'a str) -> Self {
         let options = Tokenizer::EOL_MATTERS | Tokenizer::CONCAT_SPECIAL;
         let comment_defs = vec![("**", "")];
-        let tok = Tokenizer::with_comments(s, options, comment_defs);
+        let mut tok = Tokenizer::with_comments(s, options, comment_defs);
 
-        Self { tok }
+        let tok_it = tok.next();
+        let current = match tok_it {
+            Some(t) => t,
+            None => Token { 
+                sval: "", 
+                nval: 0.0, 
+                ttype: TokenType::Undefined 
+            } 
+        };
+
+        Self { tok, current, current_lex: String::new() }
     }
 
     fn deaccent<S>(word: S) -> String where S: Into<String>
     {
-        word
-        .into()
-        .chars()
-        .map(|c| match c {
+        word.into().chars().map(|c| match c {
             'á' => 'a',
             'í' => 'i',
             'é' => 'e',
@@ -89,20 +90,16 @@ impl<'a> Lexer<'a> {
             _ => c
         }).collect()
     }
-}
 
-impl<'a> Iterator for Lexer<'a> {
-    type Item = LexerToken<'a>;
-
-    fn next(&mut self) -> Option<LexerToken<'a>> {
+    fn step(&mut self) {
         let tk_it = self.tok.next();
 
         if tk_it.is_none() {
-            return Option::from(None);
+            self.current.ttype = TokenType::EOF;
         }
 
         let mut tk = tk_it.unwrap();
-        let lex = match tk.ttype {
+        self.current_lex = match tk.ttype {
             TokenType::Special => {
                 if OPERATORS.contains(tk.sval) {
                     tk.ttype = TokenType::Operator;
@@ -125,8 +122,59 @@ impl<'a> Iterator for Lexer<'a> {
             _ => String::new()
         };
 
-        let lt = LexerToken { tok: tk, lex };
-        return Option::from(lt);
+        self.current = tk;
+    }
+
+    pub fn is_data(&self) -> bool {
+        match self.current.ttype {
+            TokenType::Char | TokenType::String | 
+            TokenType::Int  | TokenType::Float => true,
+
+            _ => false
+        } 
+    }
+
+    pub fn is_ident(&self) -> bool {
+        return self.current.ttype == TokenType::Ident;
+    }
+
+    pub fn is_keyword(&self) -> bool {
+        return self.current.ttype == TokenType::Keyword;
+    }
+
+    pub fn sval(&self) -> &'a str {
+        return self.current.sval;
+    }
+
+    pub fn nval(&self) -> f64 {
+        return self.current.nval;
+    }
+
+    pub fn fval(&self) -> f64 {
+        return self.current.nval;
+    }
+
+    pub fn ival(&self) -> i64 {
+        return self.current.nval as i64;
+    }
+
+    pub fn lexical(&self) -> String {
+        return self.current_lex.clone();
+    }
+}
+
+impl<'a> Iterator for Lexer<'a> {
+    type Item = LexerToken<'a>;
+
+    fn next(&mut self) -> Option<LexerToken<'a>> {
+        let rv = match self.current.ttype {
+            TokenType::EOF => Option::from(None),
+            _ => Option::from(LexerToken { 
+                tok: self.current.clone(), lex: self.current_lex.clone()
+            })
+        };
+        self.step();
+        rv
     }
 }
 
